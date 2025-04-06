@@ -2,7 +2,7 @@
   <div>
     <!-- Navbar -->
     <nav class="navbar">
-      <img src="@/assets/GSK_logo.png" alt="">
+      <img src="@/assets/GSK_logo.png" alt="" />
     </nav>
 
     <div class="post-container">
@@ -17,21 +17,24 @@
         <div class="post-info">
           <div class="likes-views">
             <button @click="increaseLikes(index)">
-              
-              <i :class="post.liked ? 'fa-solid fa-heart liked' : 'fa-regular fa-heart'"></i>
+              <i
+                :class="
+                  post.liked ? 'fa-solid fa-heart liked' : 'fa-regular fa-heart'
+                "
+              ></i>
               {{ post.likes }} Likes
             </button>
-           <div class="right-info">
-              <span><i class="fas fa-clock"></i> {{ post.daysAgo }} Days ago</span>
+            <div class="right-info">
+              <span
+                ><i class="fas fa-clock"></i> {{ post.daysAgo }} Days ago</span
+              >
               <span><i class="fas fa-play"></i> {{ post.views }} Views</span>
-           </div>
-
+            </div>
           </div>
           <div class="content-info">
-              <h3>{{ post.title }}</h3>
-          <p>{{ post.description }}</p>
+            <h3>{{ post.title }}</h3>
+            <p>{{ post.description }}</p>
           </div>
-          
         </div>
       </div>
     </div>
@@ -39,36 +42,47 @@
 </template>
 
 <script setup>
-import { ref } from 'vue';
-import 'primeicons/primeicons.css';
+import { ref } from "vue";
+import "primeicons/primeicons.css";
 
 const posts = ref([
   {
-    mediaUrl: new URL('@/assets/videos/vid1.mp4', import.meta.url).href,
-    mediaType: 'video',
+    mediaUrl: new URL("@/assets/videos/vid1.mp4", import.meta.url).href,
+    mediaType: "video",
     likes: 100,
     views: 2563,
     daysAgo: 2,
-    title: 'Headline ',
-    description: "Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard dummy text ever since the 1500s",
-    liked: false
+    title: "Headline ",
+    description:
+      "Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard dummy text ever since the 1500s",
+    liked: false,
   },
   {
-    mediaUrl: new URL('@/assets/videos/vid2.mp4', import.meta.url).href,
-    mediaType: 'video',
+    mediaUrl: new URL("@/assets/videos/vid2.mp4", import.meta.url).href,
+    mediaType: "video",
     likes: 150,
     views: 3600,
     daysAgo: 1,
-    title: 'Second Video',
-    description: 'This is the second local video.',
-    liked: false
-  }
+    title: "Second Video",
+    description: "This is the second local video.",
+    liked: false,
+  },
+  {
+    mediaUrl: new URL("@/assets/videos/vid3.mp4", import.meta.url).href,
+    mediaType: "video",
+    likes: 150,
+    views: 3600,
+    daysAgo: 1,
+    title: "Third Video",
+    description: "This is the third local video.",
+    liked: true,
+  },
 ]);
 
 const increaseLikes = (index) => {
   const post = posts.value[index];
-  post.liked = !post.liked; 
-  post.likes += post.liked ? 1 : -1; 
+  post.liked = !post.liked;
+  post.likes += post.liked ? 1 : -1;
 };
 
 // const increaseLikes = (index) => {
@@ -82,10 +96,10 @@ nav {
 }
 .navbar {
   width: 100%;
-  height: 50px; 
+  height: 50px;
   background: transparent;
   color: orangered;
-  padding: 10px; 
+  padding: 10px;
   text-align: center;
   z-index: 1000;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
@@ -94,10 +108,10 @@ nav {
 body {
   margin: 0;
   padding: 0;
-  overflow-x: hidden; 
-  background-image: url('@/assets/background.png');
+  overflow-x: hidden;
+  background-image: url("@/assets/background.png");
   background-position: center;
-  background-size: 100% 100%; 
+  background-size: 100% 100%;
   background-repeat: no-repeat;
 }
 
@@ -115,7 +129,8 @@ body {
   margin: 20px auto;
 }
 
-.post-card img, .post-card video {
+.post-card img,
+.post-card video {
   width: 100%;
   border-radius: 10px;
 }
