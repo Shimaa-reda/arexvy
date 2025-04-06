@@ -6,9 +6,21 @@
     </nav>
 
     <div class="post-container">
-      <div class="post-card" v-for="(post, index) in posts" :key="index">
+      <div
+        class="post-card"
+        v-for="(post, index) in posts"
+        :key="index"
+        ref="videoRefs"
+      >
         <div v-if="post.mediaType === 'video'">
-          <video :src="post.mediaUrl" autoplay loop muted playsinline></video>
+          <video
+            :src="post.mediaUrl"
+            autoplay
+            loop
+            muted
+            playsinline
+            class="post-video"
+          ></video>
         </div>
         <div v-else>
           <img :src="post.mediaUrl" alt="Post Image" />
@@ -25,9 +37,7 @@
               {{ post.likes }} Likes
             </button>
             <div class="right-info">
-              <span
-                ><i class="fas fa-clock"></i> {{ post.daysAgo }} Days ago</span
-              >
+              <span><i class="fas fa-clock"></i> {{ post.daysAgo }} Days ago</span>
               <span><i class="fas fa-play"></i> {{ post.views }} Views</span>
             </div>
           </div>
@@ -42,8 +52,7 @@
 </template>
 
 <script setup>
-import { ref } from "vue";
-import "primeicons/primeicons.css";
+import { ref, onMounted, onBeforeUnmount } from 'vue';
 
 const posts = ref([
   {
@@ -54,7 +63,7 @@ const posts = ref([
     daysAgo: 2,
     title: "Headline ",
     description:
-      "Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard dummy text ever since the 1500s",
+      "Lorem Ipsum is simply dummy text of the printing and typesetting industry.",
     liked: false,
   },
   {
@@ -79,15 +88,42 @@ const posts = ref([
   },
 ]);
 
+const videoRefs = ref([]);
+
 const increaseLikes = (index) => {
   const post = posts.value[index];
   post.liked = !post.liked;
   post.likes += post.liked ? 1 : -1;
 };
 
-// const increaseLikes = (index) => {
-//   posts.value[index].likes++;
-// };
+let observer;
+
+onMounted(() => {
+  observer = new IntersectionObserver(
+    (entries) => {
+      entries.forEach((entry) => {
+        const video = entry.target.querySelector('video');
+        if (video) {
+          if (entry.isIntersecting) {
+            video.play();
+          } else {
+            video.pause();
+          }
+        }
+      });
+    },
+    { threshold: 0.6 }
+  );
+
+  // observe each video wrapper
+  videoRefs.value.forEach((el) => {
+    if (el) observer.observe(el);
+  });
+});
+
+onBeforeUnmount(() => {
+  if (observer) observer.disconnect();
+});
 </script>
 
 <style>
@@ -156,12 +192,11 @@ body {
   gap: 5px;
 }
 
-/* Default heart color */
 .pi-heart {
   transition: color 0.3s ease;
 }
 
-/* Solid orange heart when liked */
+
 .liked {
   color: orange !important;
 }
@@ -174,7 +209,7 @@ body {
 .right-info span {
   display: flex;
   align-items: center;
-  gap: 5px; /* Adjust space between icon and text */
+  gap: 5px; 
 }
 
 h3 {
