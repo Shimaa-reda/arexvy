@@ -1,16 +1,11 @@
 <template>
   <div>
-    <!-- Navbar -->
-    <nav class="navbar">
-      <img src="@/assets/GSK_logo.png" alt="" />
-    </nav>
-
     <div class="post-container">
       <div
         class="post-card"
         v-for="(post, index) in posts"
         :key="index"
-        ref="videoRefs"
+        ref="postCards"
       >
         <div v-if="post.mediaType === 'video'">
           <video
@@ -30,9 +25,7 @@
           <div class="likes-views">
             <button @click="increaseLikes(index)">
               <i
-                :class="
-                  post.liked ? 'fa-solid fa-heart liked' : 'fa-regular fa-heart'
-                "
+                :class="post.liked ? 'fa-solid fa-heart liked' : 'fa-regular fa-heart'"
               ></i>
               {{ post.likes }} Likes
             </button>
@@ -40,10 +33,6 @@
               <span><i class="fas fa-clock"></i> {{ post.daysAgo }} Days ago</span>
               <span><i class="fas fa-play"></i> {{ post.views }} Views</span>
             </div>
-          </div>
-          <div class="content-info">
-            <h3>{{ post.title }}</h3>
-            <p>{{ post.description }}</p>
           </div>
         </div>
       </div>
@@ -56,39 +45,32 @@ import { ref, onMounted, onBeforeUnmount } from 'vue';
 
 const posts = ref([
   {
-    mediaUrl: new URL("@/assets/videos/vid1.mp4", import.meta.url).href,
-    mediaType: "video",
+    mediaUrl: new URL('@/assets/videos/vid1.mp4', import.meta.url).href,
+    mediaType: 'video',
     likes: 100,
     views: 2563,
     daysAgo: 2,
-    title: "Headline ",
-    description:
-      "Lorem Ipsum is simply dummy text of the printing and typesetting industry.",
     liked: false,
   },
   {
-    mediaUrl: new URL("@/assets/videos/vid2.mp4", import.meta.url).href,
-    mediaType: "video",
+    mediaUrl: new URL('@/assets/videos/vid2.mp4', import.meta.url).href,
+    mediaType: 'video',
     likes: 150,
     views: 3600,
     daysAgo: 1,
-    title: "Second Video",
-    description: "This is the second local video.",
     liked: false,
   },
   {
-    mediaUrl: new URL("@/assets/videos/vid3.mp4", import.meta.url).href,
-    mediaType: "video",
+    mediaUrl: new URL('@/assets/videos/vid3.mp4', import.meta.url).href,
+    mediaType: 'video',
     likes: 150,
     views: 3600,
     daysAgo: 1,
-    title: "Third Video",
-    description: "This is the third local video.",
     liked: true,
   },
 ]);
 
-const videoRefs = ref([]);
+const postCards = ref([]);
 
 const increaseLikes = (index) => {
   const post = posts.value[index];
@@ -96,51 +78,54 @@ const increaseLikes = (index) => {
   post.likes += post.liked ? 1 : -1;
 };
 
-let observer;
+const playOnlyCenteredVideo = () => {
+  let minDistance = Infinity;
+  let centeredVideo = null;
+
+  postCards.value.forEach((el) => {
+    const rect = el.getBoundingClientRect();
+    const elCenter = rect.top + rect.height / 2;
+    const screenCenter = window.innerHeight / 2;
+    const distance = Math.abs(elCenter - screenCenter);
+
+    const video = el.querySelector('video');
+
+    if (video && distance < minDistance) {
+      minDistance = distance;
+      centeredVideo = video;
+    }
+  });
+
+  postCards.value.forEach((el) => {
+    const video = el.querySelector('video');
+    if (video) {
+      if (video === centeredVideo) {
+        if (video.paused) {
+          video.play().catch(() => {});
+        }
+      } else {
+        video.pause();
+      }
+    }
+  });
+};
+
+const handleScroll = () => {
+  playOnlyCenteredVideo();
+};
 
 onMounted(() => {
-  observer = new IntersectionObserver(
-    (entries) => {
-      entries.forEach((entry) => {
-        const video = entry.target.querySelector('video');
-        if (video) {
-          if (entry.isIntersecting) {
-            video.play();
-          } else {
-            video.pause();
-          }
-        }
-      });
-    },
-    { threshold: 0.6 }
-  );
-
-  // observe each video wrapper
-  videoRefs.value.forEach((el) => {
-    if (el) observer.observe(el);
-  });
+  window.addEventListener('scroll', handleScroll);
+  playOnlyCenteredVideo(); // initial run
 });
 
 onBeforeUnmount(() => {
-  if (observer) observer.disconnect();
+  window.removeEventListener('scroll', handleScroll);
 });
 </script>
 
-<style>
-nav {
-  padding: 0px;
-}
-.navbar {
-  width: 100%;
-  height: 50px;
-  background: transparent;
-  color: orangered;
-  padding: 10px;
-  text-align: center;
-  z-index: 1000;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-}
 
+<style>
 body {
   margin: 0;
   padding: 0;
@@ -150,6 +135,9 @@ body {
   background-size: 100% 100%;
   background-repeat: no-repeat;
 }
+</style>
+
+<style scoped>
 
 .post-container {
   padding: 20px;
@@ -192,11 +180,6 @@ body {
   gap: 5px;
 }
 
-.pi-heart {
-  transition: color 0.3s ease;
-}
-
-
 .liked {
   color: orange !important;
 }
@@ -209,20 +192,6 @@ body {
 .right-info span {
   display: flex;
   align-items: center;
-  gap: 5px; 
-}
-
-h3 {
-  margin-top: 10px;
-  text-align: left;
-  margin-bottom: 0px;
-  font-weight: bold;
-}
-
-p {
-  font-size: 14px;
-  color: gray;
-  text-align: left;
-  margin-top: 5px;
+  gap: 5px;
 }
 </style>
