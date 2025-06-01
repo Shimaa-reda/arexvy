@@ -21,7 +21,7 @@
           <img :src="post.mediaUrl" alt="Post Image" />
         </div>
 
-        <div class="post-info">
+        <div class="post-info" style="margin-top:10px">
           <div class="likes-views">
             <button @click="increaseLikes(index)">
               <i
@@ -68,6 +68,30 @@ const posts = ref([
     daysAgo: 1,
     liked: true,
   },
+  {
+    mediaUrl: new URL('@/assets/videos/vid1.mp4', import.meta.url).href,
+    mediaType: 'video',
+    likes: 100,
+    views: 2563,
+    daysAgo: 2,
+    liked: false,
+  },
+  {
+    mediaUrl: new URL('@/assets/videos/vid2.mp4', import.meta.url).href,
+    mediaType: 'video',
+    likes: 150,
+    views: 3600,
+    daysAgo: 1,
+    liked: false,
+  },
+  {
+    mediaUrl: new URL('@/assets/videos/vid3.mp4', import.meta.url).href,
+    mediaType: 'video',
+    likes: 150,
+    views: 3600,
+    daysAgo: 1,
+    liked: true,
+  },
 ]);
 
 const postCards = ref([]);
@@ -76,6 +100,38 @@ const increaseLikes = (index) => {
   const post = posts.value[index];
   post.liked = !post.liked;
   post.likes += post.liked ? 1 : -1;
+};
+
+const playFirstVisibleVideoOnMobile = () => {
+  // Find first video element that is at least partially visible on the viewport from top to bottom
+  let foundVideoToPlay = false;
+
+  postCards.value.forEach((el) => {
+    const video = el.querySelector('video');
+    if (!video) return;
+
+    const rect = el.getBoundingClientRect();
+
+    // Check if the element is visible in viewport vertically (partial visibility)
+    const isVisible = rect.bottom > 0 && rect.top < window.innerHeight;
+
+    if (isVisible && !foundVideoToPlay) {
+      // Play this first visible video
+      video.play().catch(() => {});
+      foundVideoToPlay = true;
+    } else {
+      // Pause other videos
+      video.pause();
+    }
+  });
+
+  // If no videos visible (unlikely), pause all just in case
+  if (!foundVideoToPlay) {
+    postCards.value.forEach((el) => {
+      const video = el.querySelector('video');
+      if (video) video.pause();
+    });
+  }
 };
 
 const playOnlyCenteredVideo = () => {
@@ -100,9 +156,7 @@ const playOnlyCenteredVideo = () => {
     const video = el.querySelector('video');
     if (video) {
       if (video === centeredVideo) {
-        if (video.paused) {
-          video.play().catch(() => {});
-        }
+        video.play().catch(() => {});
       } else {
         video.pause();
       }
@@ -111,19 +165,31 @@ const playOnlyCenteredVideo = () => {
 };
 
 const handleScroll = () => {
-  playOnlyCenteredVideo();
+  const isMobile = window.innerWidth <= 768;
+  if (isMobile) {
+    playFirstVisibleVideoOnMobile();
+  } else {
+    playOnlyCenteredVideo();
+  }
 };
 
 onMounted(() => {
   window.addEventListener('scroll', handleScroll);
-  playOnlyCenteredVideo(); // initial run
+
+  const isMobile = window.innerWidth <= 768;
+  if (isMobile) {
+    playFirstVisibleVideoOnMobile();
+  } else {
+    playOnlyCenteredVideo();
+  }
 });
 
 onBeforeUnmount(() => {
   window.removeEventListener('scroll', handleScroll);
 });
-</script>
 
+
+</script>
 
 <style>
 body {
@@ -134,16 +200,24 @@ body {
   background-position: center;
   background-size: 100% 100%;
   background-repeat: no-repeat;
+  font-family: 'GSK Precision', sans-serif;
+}
+
+.likes-views button{
+  font-family: 'GSK Precision', sans-serif;
 }
 </style>
 
 <style scoped>
-
 .post-container {
   padding: 20px;
   min-height: 100vh;
 }
+.right-info{
+  color: #9E9E9E;
 
+
+}
 .post-card {
   background: white;
   border-radius: 10px;
@@ -169,6 +243,7 @@ body {
   align-items: center;
   font-size: 14px;
 }
+
 .likes-views button {
   background: none;
   border: none;
@@ -183,12 +258,14 @@ body {
 .liked {
   color: orange !important;
 }
+
 .right-info {
   display: flex;
   gap: 10px;
   justify-content: flex-end;
   align-items: center;
 }
+
 .right-info span {
   display: flex;
   align-items: center;

@@ -6,3 +6,9 @@
   <router-view/>
 </template>
 
+<style>
+body {
+  font-family: 'GSK Precision', sans-serif;
+}
+
+</style>
