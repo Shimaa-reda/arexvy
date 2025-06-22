@@ -22,16 +22,19 @@
         :key="index"
         ref="postCards"
       >
-        <div>
+        <div class="video-wrapper">
           <video
             :src="`https://be.24h24s.com/${post.video_url}`"
             :data-video-id="post.id"
             autoplay
             loop
-            muted
             playsinline
+            :muted="isMuted"
             class="post-video"
           ></video>
+          <button class="mute-button" @click="toggleMute">
+            <i :class="isMuted ? 'fas fa-volume-mute' : 'fas fa-volume-up'"></i>
+          </button>
         </div>
 
         <div class="post-info" style="margin-top: 10px">
@@ -45,15 +48,38 @@
               {{ post.likes }} Likes
             </button>
             <div class="right-info">
-              <span
-                ><i class="fas fa-clock"></i>
-                {{ calculateDaysAgo(post.created_at) }} Days ago</span
-              >
+              <span>
+                <i class="fas fa-clock"></i>
+                {{ calculateDaysAgo(post.created_at) }} Days ago
+              </span>
               <span><i class="fas fa-play"></i> {{ post.views }} Views</span>
             </div>
           </div>
         </div>
       </div>
+
+      <!-- test local -->
+    <!-- <div class="post-card">
+  <div class="video-wrapper " style="height:100vh">
+    <video
+      :src="testVideo"
+      autoplay
+      loop
+      playsinline
+      :muted="isMuted"
+      class="post-video"
+    ></video>
+    <button class="mute-button" @click="toggleMute">
+      <i :class="isMuted ? 'fas fa-volume-mute' : 'fas fa-volume-up'"></i>
+    </button>
+  </div>
+  <div class="post-info" style="margin-top: 10px">
+    <div class="likes-views">
+      <span>Test Video with Sound (Local)</span>
+    </div>
+  </div>
+</div> -->
+
     </div>
   </div>
 </template>
@@ -61,378 +87,195 @@
 <script setup>
 import { ref, onMounted, onBeforeUnmount, watch } from "vue";
 import { useRoute } from "vue-router";
+// import testVideo from '@/assets/videos/vid3.mp4';
 
 const route = useRoute();
 
 const posts = ref([]);
 const loading = ref(false);
 const error = ref(null);
+const isMuted = ref(true); // global mute state
 
-// LocalStorage functions for liked videos
+const toggleMute = () => {
+  isMuted.value = !isMuted.value;
+  postCards.value.forEach((el) => {
+    const video = el.querySelector("video");
+    if (video) {
+      video.muted = isMuted.value;
+    }
+  });
+};
+
+// LocalStorage functions
 const getLikedVideos = (title) => {
-  try {
-    let likedVideosKey;
-    if (title) {
-      likedVideosKey = `likedVideos_${title}`;
-    } else {
-      likedVideosKey = `likedVideos_default`;
-    }
-    const likedVideos = localStorage.getItem(likedVideosKey);
-    return likedVideos ? JSON.parse(likedVideos) : [];
-  } catch (error) {
-    console.error("Error reading liked videos from localStorage:", error);
-    return [];
+  const key = title ? `likedVideos_${title}` : "likedVideos_default";
+  const data = localStorage.getItem(key);
+  return data ? JSON.parse(data) : [];
+};
+
+const saveLikedVideo = (id, title) => {
+  const key = title ? `likedVideos_${title}` : "likedVideos_default";
+  const liked = getLikedVideos(title);
+  if (!liked.includes(id)) {
+    liked.push(id);
+    localStorage.setItem(key, JSON.stringify(liked));
   }
 };
 
-const saveLikedVideo = (videoId, title) => {
-  try {
-    let likedVideosKey;
-    if (title) {
-      likedVideosKey = `likedVideos_${title}`;
-    } else {
-      likedVideosKey = `likedVideos_default`;
-    }
-    const likedVideos = getLikedVideos(title);
-    if (!likedVideos.includes(videoId)) {
-      likedVideos.push(videoId);
-      localStorage.setItem(likedVideosKey, JSON.stringify(likedVideos));
-    }
-  } catch (error) {
-    console.error("Error saving liked video to localStorage:", error);
-  }
+const removeLikedVideo = (id, title) => {
+  const key = title ? `likedVideos_${title}` : "likedVideos_default";
+  const liked = getLikedVideos(title);
+  const updated = liked.filter((x) => x !== id);
+  localStorage.setItem(key, JSON.stringify(updated));
 };
 
-const removeLikedVideo = (videoId, title) => {
-  try {
-    let likedVideosKey;
-    if (title) {
-      likedVideosKey = `likedVideos_${title}`;
-    } else {
-      likedVideosKey = `likedVideos_default`;
-    }
-    const likedVideos = getLikedVideos(title);
-    const updatedLikedVideos = likedVideos.filter((id) => id !== videoId);
-    localStorage.setItem(likedVideosKey, JSON.stringify(updatedLikedVideos));
-  } catch (error) {
-    console.error("Error removing liked video from localStorage:", error);
-  }
-};
+const isVideoLiked = (id, title) => getLikedVideos(title).includes(id);
 
-const isVideoLiked = (videoId, title) => {
-  const likedVideos = getLikedVideos(title);
-  return likedVideos.includes(videoId);
-};
-
-// Track viewed videos to avoid counting multiple views
+// Track viewed videos
 const viewedVideos = ref([]);
-// Track videos currently being processed to prevent duplicate calls
 const processingVideos = ref(new Set());
-// Debounce timer for scroll events
 let scrollTimeout = null;
 
-const incrementView = async (videoId) => {
-  // Check if we've already counted a view for this video in this session
-  const videoIdInt = parseInt(videoId);
-
-  // Check if already viewed or currently being processed
-  if (
-    viewedVideos.value.includes(videoIdInt) ||
-    processingVideos.value.has(videoIdInt)
-  ) {
-    return;
-  }
-
-  // Mark as being processed
+const incrementView = async (id) => {
+  const videoIdInt = parseInt(id);
+  if (viewedVideos.value.includes(videoIdInt) || processingVideos.value.has(videoIdInt)) return;
   processingVideos.value.add(videoIdInt);
 
   try {
-    const response = await fetch(
-      `https://be.24h24s.com/api/video/${videoId}/view`,
-      {
-        method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-        },
-      }
-    );
-
-    if (response.ok) {
-      const result = await response.json();
-
-      // Mark this video as viewed in this session
+    const res = await fetch(`https://be.24h24s.com/api/video/${id}/view`);
+    if (res.ok) {
+      const result = await res.json();
       viewedVideos.value.push(videoIdInt);
-
-      // Find the post and update the view count
-      const post = posts.value.find((p) => p.id === videoId);
-      if (post) {
-        // If server returns updated view count, use it; otherwise increment by 1
-        if (result.data && result.data.views) {
-          post.views = result.data.views;
-        } else {
-          post.views += 1;
-        }
-      }
-    } else {
-      console.error("Failed to increment view, status:", response.status);
+      const post = posts.value.find((p) => p.id === id);
+      if (post) post.views = result.data?.views ?? post.views + 1;
     }
-  } catch (error) {
-    console.error("Error incrementing view:", error);
+  } catch (err) {
+    console.error("View error", err);
   } finally {
-    // Remove from processing set
     processingVideos.value.delete(videoIdInt);
   }
 };
 
 const fetchData = async (titleParam) => {
-  console.log("fetchData called with titleParam:", titleParam);
-
-  if (!titleParam) {
-    console.log("No titleParam provided, returning");
-    return;
-  }
-
-  console.log("Setting loading to true");
+  if (!titleParam) return;
   loading.value = true;
   error.value = null;
 
   try {
-    console.log(
-      "Making API call to:",
-      `https://be.24h24s.com/api/arrangement/${titleParam}`
-    );
-    const response = await fetch(
-      `https://be.24h24s.com/api/arrangement/${titleParam}`
-    );
-
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-
+    const response = await fetch(`https://be.24h24s.com/api/arrangement/${titleParam}`);
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
     const data = await response.json();
-    console.log("API response received:", data);
-
-    // Update posts with the fetched data and set liked state from localStorage
     const fetchedPosts = data.posts || data || [];
-    console.log("Fetched posts:", fetchedPosts);
-
-    fetchedPosts.forEach((post) => {
-      post.liked = isVideoLiked(post.id, titleParam);
-    });
+    fetchedPosts.forEach((post) => (post.liked = isVideoLiked(post.id, titleParam)));
     posts.value = fetchedPosts;
-    console.log("Posts updated:", posts.value);
   } catch (err) {
-    console.error("Error fetching data:", err);
     error.value = "Failed to load data. Please try again.";
   } finally {
-    console.log("Setting loading to false");
     loading.value = false;
   }
 };
 
 const calculateDaysAgo = (createdAt) => {
-  if (!createdAt) return 0;
-
-  const createdDate = new Date(createdAt);
-  const currentDate = new Date();
-  const timeDifference = currentDate.getTime() - createdDate.getTime();
-  const daysDifference = Math.floor(timeDifference / (1000 * 3600 * 24));
-
-  return daysDifference;
+  const created = new Date(createdAt);
+  const now = new Date();
+  return Math.floor((now - created) / (1000 * 3600 * 24));
 };
 
-// Watch for changes in the title parameter
 watch(
   () => route.params.title,
   (newTitle) => {
-    console.log("Route title changed:", newTitle);
-    if (newTitle) {
-      console.log("Calling fetchData with title:", newTitle);
-      fetchData(newTitle);
-    } else {
-      console.log("No title, using default posts");
-      // If no title, use default posts
-      fetchData("default");
-    }
+    fetchData(newTitle || "default");
   },
   { immediate: true }
 );
 
 const postCards = ref([]);
 
-const increaseLikes = async (postId) => {
+const increaseLikes = async (id) => {
+  const post = posts.value.find((p) => p.id === id);
+  if (!post || post.liked) return;
+  post.liked = true;
+  post.likes++;
+  saveLikedVideo(id, route.params.title);
+
   try {
-    // Find the post by ID
-    const post = posts.value.find((p) => p.id === postId);
-    if (!post) return;
-
-    // Check if user has already liked this video
-    if (post.liked) {
-      return;
-    }
-
-    // Optimistically update the UI first
-    post.liked = true;
-    post.likes += 1;
-
-    // Save to localStorage
-    saveLikedVideo(postId, route.params.title);
-
-    // Make API call to update the like on the server
-    const response = await fetch(
-      `https://be.24h24s.com/api/video/${postId}/like`,
-      {
-        method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-        },
-      }
-    );
-
-    if (!response.ok) {
-      // If API call fails, revert the optimistic update
-      post.liked = false;
-      post.likes -= 1;
-      removeLikedVideo(postId, route.params.title);
-      console.error("Failed to update like on server");
-    }
-  } catch (error) {
-    console.error("Error updating like:", error);
-    // Revert optimistic update on error
-    const post = posts.value.find((p) => p.id === postId);
-    if (post) {
-      post.liked = false;
-      post.likes -= 1;
-      removeLikedVideo(postId, route.params.title);
-    }
+    const response = await fetch(`https://be.24h24s.com/api/video/${id}/like`);
+    if (!response.ok) throw new Error();
+  } catch {
+    post.liked = false;
+    post.likes--;
+    removeLikedVideo(id, route.params.title);
   }
 };
 
 const playFirstVisibleVideoOnMobile = () => {
-  // Find first video element that is completely visible on the viewport
-  let foundVideoToPlay = false;
-
+  let found = false;
   postCards.value.forEach((el) => {
     const video = el.querySelector("video");
-    if (!video) return;
-
     const rect = el.getBoundingClientRect();
+    const isVisible = rect.top >= 0 && rect.bottom <= window.innerHeight;
+    video.muted = isMuted.value;
 
-    // Check if the element is completely visible in viewport vertically
-    const isCompletelyVisible =
-      rect.top >= 0 && rect.bottom <= window.innerHeight;
-
-    if (isCompletelyVisible && !foundVideoToPlay) {
-      // Play this first completely visible video
+    if (video && isVisible && !found) {
       video.play().catch(() => {});
-      foundVideoToPlay = true;
-
-      // Get video ID from data attribute and increment view only once
-      const videoId = video.getAttribute("data-video-id");
-      const videoIdInt = parseInt(videoId);
-      if (videoId && !viewedVideos.value.includes(videoIdInt)) {
-        incrementView(videoId);
-      }
+      found = true;
+      const videoId = parseInt(video.getAttribute("data-video-id"));
+      if (!viewedVideos.value.includes(videoId)) incrementView(videoId);
     } else {
-      // Pause other videos
       video.pause();
     }
   });
-
-  // If no videos completely visible, pause all just in case
-  if (!foundVideoToPlay) {
-    postCards.value.forEach((el) => {
-      const video = el.querySelector("video");
-      if (video) video.pause();
-    });
-  }
 };
 
 const playOnlyCenteredVideo = () => {
-  let minDistance = Infinity;
-  let centeredVideo = null;
+  let minDist = Infinity;
+  let centerVideo = null;
 
   postCards.value.forEach((el) => {
     const rect = el.getBoundingClientRect();
-    const elCenter = rect.top + rect.height / 2;
+    const center = rect.top + rect.height / 2;
     const screenCenter = window.innerHeight / 2;
-    const distance = Math.abs(elCenter - screenCenter);
-
+    const distance = Math.abs(center - screenCenter);
     const video = el.querySelector("video");
+    const isVisible = rect.top >= 0 && rect.bottom <= window.innerHeight;
+    video.muted = isMuted.value;
 
-    // Only consider videos that are completely visible
-    const isCompletelyVisible =
-      rect.top >= 0 && rect.bottom <= window.innerHeight;
-
-    if (video && isCompletelyVisible && distance < minDistance) {
-      minDistance = distance;
-      centeredVideo = video;
+    if (video && isVisible && distance < minDist) {
+      minDist = distance;
+      centerVideo = video;
     }
   });
 
   postCards.value.forEach((el) => {
     const video = el.querySelector("video");
-    if (video) {
-      if (video === centeredVideo) {
-        video.play().catch(() => {});
-
-        // Get video ID from data attribute and increment view only once
-        const videoId = video.getAttribute("data-video-id");
-        const videoIdInt = parseInt(videoId);
-        if (videoId && !viewedVideos.value.includes(videoIdInt)) {
-          incrementView(videoId);
-        }
-      } else {
-        video.pause();
-      }
+    if (video === centerVideo) {
+      video.play().catch(() => {});
+      const videoId = parseInt(video.getAttribute("data-video-id"));
+      if (!viewedVideos.value.includes(videoId)) incrementView(videoId);
+    } else if (video) {
+      video.pause();
     }
   });
 };
 
 const handleScroll = () => {
-  // Clear existing timeout
-  if (scrollTimeout) {
-    clearTimeout(scrollTimeout);
-  }
-
-  // Set new timeout to debounce scroll events
+  clearTimeout(scrollTimeout);
   scrollTimeout = setTimeout(() => {
-    const isMobile = window.innerWidth <= 768;
-    if (isMobile) {
-      playFirstVisibleVideoOnMobile();
-    } else {
-      playOnlyCenteredVideo();
-    }
-  }, 100); // 100ms debounce
+    window.innerWidth <= 768 ? playFirstVisibleVideoOnMobile() : playOnlyCenteredVideo();
+  }, 100);
 };
 
 onMounted(() => {
-  console.log("Component mounted, route title:", route.params.title);
-
-  // Call fetchData on mount if there's a title
-  if (route.params.title) {
-    console.log("Calling fetchData on mount with title:", route.params.title);
-    fetchData(route.params.title);
-  }
-
+  fetchData(route.params.title);
   window.addEventListener("scroll", handleScroll);
-
-  // Initial call with delay to ensure DOM is ready
   setTimeout(() => {
-    const isMobile = window.innerWidth <= 768;
-    if (isMobile) {
-      playFirstVisibleVideoOnMobile();
-    } else {
-      playOnlyCenteredVideo();
-    }
-  }, 500); // 500ms delay to ensure videos are loaded
+    window.innerWidth <= 768 ? playFirstVisibleVideoOnMobile() : playOnlyCenteredVideo();
+  }, 500);
 });
 
 onBeforeUnmount(() => {
   window.removeEventListener("scroll", handleScroll);
-  if (scrollTimeout) {
-    clearTimeout(scrollTimeout);
-  }
+  clearTimeout(scrollTimeout);
 });
 </script>
 
@@ -448,24 +291,20 @@ body {
   background-attachment: fixed;
   font-family: "GSK Precision", sans-serif;
 }
-
 .likes-views button {
   font-family: "GSK Precision", sans-serif;
 }
 </style>
 
 <style scoped>
-.post-container {
-  padding: 20px;
-  min-height: 100vh;
-}
-
+.post-container,
 .skeleton-container {
   padding: 20px;
   min-height: 100vh;
 }
 
-.skeleton-card {
+.skeleton-card,
+.post-card {
   background: white;
   border-radius: 10px;
   padding: 15px;
@@ -474,28 +313,24 @@ body {
   margin: 20px auto;
 }
 
-.skeleton-video {
-  width: 100%;
-  height: 200px;
+.skeleton-video,
+.skeleton-likes,
+.skeleton-text {
   background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
   background-size: 200% 100%;
   animation: loading 1.5s infinite;
   border-radius: 10px;
-  margin-bottom: 10px;
 }
 
-.skeleton-info {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
+.skeleton-video {
+  width: 100%;
+  height: 200px;
+  margin-bottom: 10px;
 }
 
 .skeleton-likes {
   width: 80px;
   height: 20px;
-  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
-  background-size: 200% 100%;
-  animation: loading 1.5s infinite;
   border-radius: 4px;
 }
 
@@ -507,9 +342,6 @@ body {
 .skeleton-text {
   width: 60px;
   height: 16px;
-  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
-  background-size: 200% 100%;
-  animation: loading 1.5s infinite;
   border-radius: 4px;
 }
 
@@ -522,27 +354,32 @@ body {
   }
 }
 
-.right-info {
-  color: #9e9e9e;
-}
-
-.post-card {
-  background: white;
-  border-radius: 10px;
-  padding: 15px;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-  max-width: 350px;
-  margin: 20px auto;
-}
-
-.post-card img,
 .post-card video {
   width: 100%;
   border-radius: 10px;
+  pointer-events: none;
 }
 
-.post-card video {
-  pointer-events: none;
+.video-wrapper {
+  position: relative;
+}
+
+.mute-button {
+  position: absolute;
+  bottom: 10px;
+  right: 10px;
+  background: rgba(0, 0, 0, 0.6);
+  color: white;
+  border: none;
+  padding: 6px;
+  border-radius: 50%;
+  cursor: pointer;
+  font-size: 14px;
+  z-index: 2;
+}
+
+.mute-button:hover {
+  background: rgba(0, 0, 0, 0.8);
 }
 
 .likes-views {
@@ -572,6 +409,7 @@ body {
   gap: 10px;
   justify-content: flex-end;
   align-items: center;
+  color: #9e9e9e;
 }
 
 .right-info span {
