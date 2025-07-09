@@ -12,101 +12,88 @@
         </div>
       </div>
     </div>
-    <div v-else-if="error" class="error">
-      {{ error }}
-    </div>
-    <div v-else class="post-container">
-      <div
-        class="post-card"
-        v-for="(post, index) in posts"
-        :key="index"
-        ref="postCards"
-      >
-        <div class="video-wrapper">
-          <video
-            :src="`https://be.24h24s.com/${post.video_url}`"
-            :data-video-id="post.id"
-            autoplay
-            loop
-            playsinline
-            :muted="isMuted"
-            class="post-video"
-          ></video>
-          <button class="mute-button" @click="toggleMute">
-            <i :class="isMuted ? 'fas fa-volume-mute' : 'fas fa-volume-up'"></i>
-          </button>
-        </div>
 
-        <div class="post-info" style="margin-top: 10px">
-          <div class="likes-views">
-            <button @click="increaseLikes(post.id)">
-              <i
-                :class="
-                  post.liked ? 'fa-solid fa-heart liked' : 'fa-regular fa-heart'
-                "
-              ></i>
-              {{ post.likes }} Likes
-            </button>
-            <div class="right-info">
-              <span>
-                <i class="fas fa-clock"></i>
-                {{ calculateDaysAgo(post.created_at) }} Days ago
-              </span>
-              <span><i class="fas fa-play"></i> {{ post.views }} Views</span>
+    <div v-else-if="error" class="error">{{ error }}</div>
+
+    <div v-else>
+      <swiper
+        direction="vertical"
+        :mousewheel="{ forceToAxis: true, releaseOnEdges: true, sensitivity: 0.5 }"
+        :slides-per-view="1"
+        :resistance-ratio="0"
+        :speed="400"
+        :modules="modules"
+        class="mySwiper"
+        @slideChange="onSlideChange"
+      >
+        <swiper-slide v-for="(post, index) in posts" :key="index">
+          <div class="post-card">
+            <div class="video-wrapper">
+              <video
+                :src="`https://be.24h24s.com/${post.video_url}`"
+                :data-video-id="post.id"
+                autoplay
+                loop
+                playsinline
+                :muted="isMuted"
+                class="post-video"
+              ></video>
+
+              <!-- Swipe Prompt -->
+              <div v-if="promptVisibleIndex === index" class="swipe-prompt">
+                Swipe down for more videos
+              </div>
+
+              <button class="mute-button" @click="toggleMute">
+                <i :class="isMuted ? 'fas fa-volume-mute' : 'fas fa-volume-up'"></i>
+              </button>
+            </div>
+
+            <div class="post-info" style="margin-top: 10px">
+              <div class="likes-views">
+                <button @click="toggleLike(post.id)">
+                  <i :class="post.liked ? 'fa-solid fa-heart liked' : 'fa-regular fa-heart'"></i>
+                  {{ post.likes }} Likes
+                </button>
+                <div class="right-info">
+                  <span><i class="fas fa-clock"></i> {{ calculateDaysAgo(post.created_at) }} Days ago</span>
+                  <span><i class="fas fa-play"></i> {{ post.views }} Views</span>
+                </div>
+              </div>
             </div>
           </div>
-        </div>
-      </div>
-
-      <!-- test local -->
-    <!-- <div class="post-card">
-  <div class="video-wrapper " style="height:100vh">
-    <video
-      :src="testVideo"
-      autoplay
-      loop
-      playsinline
-      :muted="isMuted"
-      class="post-video"
-    ></video>
-    <button class="mute-button" @click="toggleMute">
-      <i :class="isMuted ? 'fas fa-volume-mute' : 'fas fa-volume-up'"></i>
-    </button>
-  </div>
-  <div class="post-info" style="margin-top: 10px">
-    <div class="likes-views">
-      <span>Test Video with Sound (Local)</span>
-    </div>
-  </div>
-</div> -->
-
+        </swiper-slide>
+      </swiper>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted, onBeforeUnmount, watch } from "vue";
+import { ref, onMounted, watch } from "vue";
 import { useRoute } from "vue-router";
-// import testVideo from '@/assets/videos/vid3.mp4';
+import { Swiper, SwiperSlide } from "swiper/vue";
+import { Mousewheel } from "swiper/modules";
+
+const modules = [Mousewheel];
 
 const route = useRoute();
-
 const posts = ref([]);
 const loading = ref(false);
 const error = ref(null);
-const isMuted = ref(true); // global mute state
+const isMuted = ref(true);
+const viewedVideos = ref([]);
+const processingVideos = ref(new Set());
+const promptVisibleIndex = ref(null); // Show swipe message
 
 const toggleMute = () => {
+  const slides = document.querySelectorAll(".swiper-slide");
   isMuted.value = !isMuted.value;
-  postCards.value.forEach((el) => {
-    const video = el.querySelector("video");
-    if (video) {
-      video.muted = isMuted.value;
-    }
+  slides.forEach((slide) => {
+    const video = slide.querySelector("video");
+    if (video) video.muted = isMuted.value;
   });
 };
 
-// LocalStorage functions
 const getLikedVideos = (title) => {
   const key = title ? `likedVideos_${title}` : "likedVideos_default";
   const data = localStorage.getItem(key);
@@ -131,11 +118,6 @@ const removeLikedVideo = (id, title) => {
 
 const isVideoLiked = (id, title) => getLikedVideos(title).includes(id);
 
-// Track viewed videos
-const viewedVideos = ref([]);
-const processingVideos = ref(new Set());
-let scrollTimeout = null;
-
 const incrementView = async (id) => {
   const videoIdInt = parseInt(id);
   if (viewedVideos.value.includes(videoIdInt) || processingVideos.value.has(videoIdInt)) return;
@@ -153,6 +135,68 @@ const incrementView = async (id) => {
     console.error("View error", err);
   } finally {
     processingVideos.value.delete(videoIdInt);
+  }
+};
+
+const toggleLike = async (id) => {
+  const post = posts.value.find((p) => p.id === id);
+  if (!post) return;
+
+  const key = route.params.title;
+
+  if (post.liked) {
+    post.liked = false;
+    post.likes--;
+    removeLikedVideo(id, key);
+    try {
+      await fetch(`https://be.24h24s.com/api/video/${id}/unlike`);
+    } catch {
+      post.liked = true;
+      post.likes++;
+      saveLikedVideo(id, key);
+    }
+  } else {
+    post.liked = true;
+    post.likes++;
+    saveLikedVideo(id, key);
+    try {
+      await fetch(`https://be.24h24s.com/api/video/${id}/like`);
+    } catch {
+      post.liked = false;
+      post.likes--;
+      removeLikedVideo(id, key);
+    }
+  }
+};
+
+const calculateDaysAgo = (createdAt) => {
+  const created = new Date(createdAt);
+  const now = new Date();
+  return Math.floor((now - created) / (1000 * 3600 * 24));
+};
+
+const onSlideChange = (swiper) => {
+  const currentIndex = swiper.activeIndex;
+  const slides = document.querySelectorAll(".swiper-slide");
+  const el = slides[currentIndex];
+  const video = el?.querySelector("video");
+
+  if (video) {
+    slides.forEach((slide) => {
+      const vid = slide.querySelector("video");
+      if (vid && vid !== video) vid.pause();
+    });
+    video.muted = isMuted.value;
+    video.play().catch(() => {});
+    const videoId = parseInt(video.getAttribute("data-video-id"));
+    if (!viewedVideos.value.includes(videoId)) incrementView(videoId);
+
+    promptVisibleIndex.value = currentIndex;
+    setTimeout(() => {
+      if (promptVisibleIndex.value === currentIndex) {
+        promptVisibleIndex.value = null;
+      }
+    }, 2000);
   }
 };
 
@@ -175,12 +219,6 @@ const fetchData = async (titleParam) => {
   }
 };
 
-const calculateDaysAgo = (createdAt) => {
-  const created = new Date(createdAt);
-  const now = new Date();
-  return Math.floor((now - created) / (1000 * 3600 * 24));
-};
-
 watch(
   () => route.params.title,
   (newTitle) => {
@@ -189,118 +227,19 @@ watch(
   { immediate: true }
 );
 
-const postCards = ref([]);
-
-const increaseLikes = async (id) => {
-  const post = posts.value.find((p) => p.id === id);
-  if (!post || post.liked) return;
-  post.liked = true;
-  post.likes++;
-  saveLikedVideo(id, route.params.title);
-
-  try {
-    const response = await fetch(`https://be.24h24s.com/api/video/${id}/like`);
-    if (!response.ok) throw new Error();
-  } catch {
-    post.liked = false;
-    post.likes--;
-    removeLikedVideo(id, route.params.title);
-  }
-};
-
-const playFirstVisibleVideoOnMobile = () => {
-  let found = false;
-  postCards.value.forEach((el) => {
-    const video = el.querySelector("video");
-    const rect = el.getBoundingClientRect();
-    const isVisible = rect.top >= 0 && rect.bottom <= window.innerHeight;
-    video.muted = isMuted.value;
-
-    if (video && isVisible && !found) {
-      video.play().catch(() => {});
-      found = true;
-      const videoId = parseInt(video.getAttribute("data-video-id"));
-      if (!viewedVideos.value.includes(videoId)) incrementView(videoId);
-    } else {
-      video.pause();
-    }
-  });
-};
-
-const playOnlyCenteredVideo = () => {
-  let minDist = Infinity;
-  let centerVideo = null;
-
-  postCards.value.forEach((el) => {
-    const rect = el.getBoundingClientRect();
-    const center = rect.top + rect.height / 2;
-    const screenCenter = window.innerHeight / 2;
-    const distance = Math.abs(center - screenCenter);
-    const video = el.querySelector("video");
-    const isVisible = rect.top >= 0 && rect.bottom <= window.innerHeight;
-    video.muted = isMuted.value;
-
-    if (video && isVisible && distance < minDist) {
-      minDist = distance;
-      centerVideo = video;
-    }
-  });
-
-  postCards.value.forEach((el) => {
-    const video = el.querySelector("video");
-    if (video === centerVideo) {
-      video.play().catch(() => {});
-      const videoId = parseInt(video.getAttribute("data-video-id"));
-      if (!viewedVideos.value.includes(videoId)) incrementView(videoId);
-    } else if (video) {
-      video.pause();
-    }
-  });
-};
-
-const handleScroll = () => {
-  clearTimeout(scrollTimeout);
-  scrollTimeout = setTimeout(() => {
-    window.innerWidth <= 768 ? playFirstVisibleVideoOnMobile() : playOnlyCenteredVideo();
-  }, 100);
-};
-
 onMounted(() => {
   fetchData(route.params.title);
-  window.addEventListener("scroll", handleScroll);
+  promptVisibleIndex.value = 0;
   setTimeout(() => {
-    window.innerWidth <= 768 ? playFirstVisibleVideoOnMobile() : playOnlyCenteredVideo();
-  }, 500);
-});
-
-onBeforeUnmount(() => {
-  window.removeEventListener("scroll", handleScroll);
-  clearTimeout(scrollTimeout);
+    if (promptVisibleIndex.value === 0) promptVisibleIndex.value = null;
+  }, 5000);
 });
 </script>
 
-<style>
-body {
-  margin: 0;
-  padding: 0;
-  overflow-x: hidden;
-  background-image: url("@/assets/background.png");
-  background-position: center;
-  background-size: 100% 100%;
-  background-repeat: no-repeat;
-  background-attachment: fixed;
-  font-family: "GSK Precision", sans-serif;
-}
-.likes-views button {
-  font-family: "GSK Precision", sans-serif;
-}
-</style>
-
 <style scoped>
-.post-container,
-.skeleton-container {
-  padding: 20px;
-  min-height: 100vh;
+.mySwiper {
+  width: 100%;
+  height: 100vh;
 }
 
 .skeleton-card,
@@ -313,55 +252,14 @@ body {
   margin: 20px auto;
 }
 
-.skeleton-video,
-.skeleton-likes,
-.skeleton-text {
-  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
-  background-size: 200% 100%;
-  animation: loading 1.5s infinite;
-  border-radius: 10px;
+.video-wrapper {
+  position: relative;
 }
 
-.skeleton-video {
-  width: 100%;
-  height: 200px;
-  margin-bottom: 10px;
-}
-
-.skeleton-likes {
-  width: 80px;
-  height: 20px;
-  border-radius: 4px;
-}
-
-.skeleton-views {
-  display: flex;
-  gap: 10px;
-}
-
-.skeleton-text {
-  width: 60px;
-  height: 16px;
-  border-radius: 4px;
-}
-
-@keyframes loading {
-  0% {
-    background-position: 200% 0;
-  }
-  100% {
-    background-position: -200% 0;
-  }
-}
-
-.post-card video {
+.post-video {
   width: 100%;
   border-radius: 10px;
   pointer-events: none;
-}
-
-.video-wrapper {
-  position: relative;
 }
 
 .mute-button {
@@ -375,11 +273,6 @@ body {
   border-radius: 50%;
   cursor: pointer;
   font-size: 14px;
-  z-index: 2;
-}
-
-.mute-button:hover {
-  background: rgba(0, 0, 0, 0.8);
 }
 
 .likes-views {
@@ -424,4 +317,42 @@ body {
   color: #666;
   font-size: 16px;
 }
+
+/* Swipe prompt styles */
+.swipe-prompt {
+  position: absolute;
+  top: 30%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: white;
+  z-index: 10;
+  white-space: nowrap;
+  font-size: 18px;
+  font-weight: bold;
+  animation: slideDownUp 3s ease-in-out forwards;
+  text-shadow:
+    0 0 4px black,
+    0 0 6px black;
+}
+
+@keyframes slideDownUp {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -80%);
+  }
+  15% {
+    opacity: 1;
+    transform: translate(-50%, -50%);
+  }
+  85% {
+    opacity: 1;
+    transform: translate(-50%, -50%);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -70%);
+  }
+}
+
+
 </style>
