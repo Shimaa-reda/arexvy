@@ -26,7 +26,7 @@
         class="mySwiper"
         @slideChange="onSlideChange"
       >
-        <swiper-slide v-for="(post, index) in posts" :key="index">
+        <swiper-slide v-for="(post, index) in posts" :key="post.id">
           <div class="post-card">
             <div class="video-wrapper">
               <video
@@ -50,16 +50,17 @@
             </div>
 
             <div class="post-info" style="margin-top: 10px">
-              <div class="likes-views">
-                <button @click="toggleLike(post.id)">
-                  <i :class="post.liked ? 'fa-solid fa-heart liked' : 'fa-regular fa-heart'"></i>
-                  {{ post.likes }} Likes
-                </button>
-                <div class="right-info">
-                  <span><i class="fas fa-clock"></i> {{ calculateDaysAgo(post.created_at) }} Days ago</span>
-                  <span><i class="fas fa-play"></i> {{ post.views }} Views</span>
-                </div>
-              </div>
+            <div class="likes-views">
+  <button @click="toggleLike(post.id)">
+    <i :class="post.liked ? 'fa-solid fa-heart' : 'fa-regular fa-heart'"></i>
+    {{ post.likes }} Likes
+  </button>
+  <div class="right-info">
+    <span><i class="fas fa-clock"></i> {{ calculateDaysAgo(post.created_at) }} Days ago</span>
+    <span><i class="fas fa-play"></i> {{ post.views }} Views</span>
+  </div>
+</div>
+
             </div>
           </div>
         </swiper-slide>
@@ -69,31 +70,23 @@
 </template>
 
 <script setup>
-import { ref, onMounted, watch } from "vue";
-import { useRoute } from "vue-router";
-import { Swiper, SwiperSlide } from "swiper/vue";
-import { Mousewheel } from "swiper/modules";
+import { ref, onMounted } from 'vue'
+import { useRoute } from 'vue-router'
+import { Swiper, SwiperSlide } from 'swiper/vue'
+import { Mousewheel } from 'swiper/modules'
+import 'swiper/css'
 
-const modules = [Mousewheel];
+const modules = [Mousewheel]
+const posts = ref([])
+const loading = ref(true)
+const error = ref(null)
+const isMuted = ref(true)
+const promptVisibleIndex = ref(null)
+const viewedVideos = ref([])
+const processingVideos = ref(new Set())
+const route = useRoute()
 
-const route = useRoute();
-const posts = ref([]);
-const loading = ref(false);
-const error = ref(null);
-const isMuted = ref(true);
-const viewedVideos = ref([]);
-const processingVideos = ref(new Set());
-const promptVisibleIndex = ref(null); // Show swipe message
-
-const toggleMute = () => {
-  const slides = document.querySelectorAll(".swiper-slide");
-  isMuted.value = !isMuted.value;
-  slides.forEach((slide) => {
-    const video = slide.querySelector("video");
-    if (video) video.muted = isMuted.value;
-  });
-};
-
+// ❤️ وظائف الإعجاب
 const getLikedVideos = (title) => {
   const key = title ? `likedVideos_${title}` : "likedVideos_default";
   const data = localStorage.getItem(key);
@@ -116,27 +109,7 @@ const removeLikedVideo = (id, title) => {
   localStorage.setItem(key, JSON.stringify(updated));
 };
 
-const isVideoLiked = (id, title) => getLikedVideos(title).includes(id);
 
-const incrementView = async (id) => {
-  const videoIdInt = parseInt(id);
-  if (viewedVideos.value.includes(videoIdInt) || processingVideos.value.has(videoIdInt)) return;
-  processingVideos.value.add(videoIdInt);
-
-  try {
-    const res = await fetch(`https://be.24h24s.com/api/video/${id}/view`);
-    if (res.ok) {
-      const result = await res.json();
-      viewedVideos.value.push(videoIdInt);
-      const post = posts.value.find((p) => p.id === id);
-      if (post) post.views = result.data?.views ?? post.views + 1;
-    }
-  } catch (err) {
-    console.error("View error", err);
-  } finally {
-    processingVideos.value.delete(videoIdInt);
-  }
-};
 
 const toggleLike = async (id) => {
   const post = posts.value.find((p) => p.id === id);
@@ -169,71 +142,134 @@ const toggleLike = async (id) => {
   }
 };
 
-const calculateDaysAgo = (createdAt) => {
-  const created = new Date(createdAt);
-  const now = new Date();
-  return Math.floor((now - created) / (1000 * 3600 * 24));
-};
 
-const onSlideChange = (swiper) => {
-  const currentIndex = swiper.activeIndex;
-  const slides = document.querySelectorAll(".swiper-slide");
-  const el = slides[currentIndex];
-  const video = el?.querySelector("video");
+const incrementView = async (id) => {
+  const videoIdInt = parseInt(id);
+  if (viewedVideos.value.includes(videoIdInt) || processingVideos.value.has(videoIdInt)) return;
+  processingVideos.value.add(videoIdInt);
 
-  if (video) {
-    slides.forEach((slide) => {
-      const vid = slide.querySelector("video");
-      if (vid && vid !== video) vid.pause();
-    });
-    video.muted = isMuted.value;
-    video.play().catch(() => {});
-    const videoId = parseInt(video.getAttribute("data-video-id"));
-    if (!viewedVideos.value.includes(videoId)) incrementView(videoId);
-
-    promptVisibleIndex.value = currentIndex;
-    setTimeout(() => {
-      if (promptVisibleIndex.value === currentIndex) {
-        promptVisibleIndex.value = null;
-      }
-    }, 2000);
+  try {
+    const res = await fetch(`https://be.24h24s.com/api/video/${id}/view`);
+    if (res.ok) {
+      const result = await res.json();
+      viewedVideos.value.push(videoIdInt);
+      const post = posts.value.find((p) => p.id === id);
+      if (post) post.views = result.data?.views ?? post.views + 1;
+    }
+  } catch (err) {
+    console.error("View error", err);
+  } finally {
+    processingVideos.value.delete(videoIdInt);
   }
 };
 
-const fetchData = async (titleParam) => {
-  if (!titleParam) return;
-  loading.value = true;
-  error.value = null;
+const toggleMute = () => {
+  isMuted.value = !isMuted.value
+  const videos = document.querySelectorAll('video')
+  videos.forEach((video) => {
+    video.muted = isMuted.value
+  })
+}
 
+const calculateDaysAgo = (createdAt) => {
+  const created = new Date(createdAt)
+  const now = new Date()
+  return Math.floor((now - created) / (1000 * 3600 * 24))
+}
+
+const onSlideChange = (swiper) => {
+  const currentIndex = swiper.activeIndex
+  const slides = document.querySelectorAll(".swiper-slide")
+  const currentSlide = slides[currentIndex]
+  const currentVideo = currentSlide?.querySelector("video")
+
+  if (currentVideo) {
+    slides.forEach(slide => {
+      const video = slide.querySelector("video")
+      if (video && video !== currentVideo) video.pause()
+    })
+
+    currentVideo.muted = isMuted.value
+    currentVideo.play().catch(() => {})
+
+    // 👁️‍🗨️ تسجيل المشاهدة
+    const post = posts.value[currentIndex]
+    if (post) incrementView(post.id)
+
+    // عرض رسالة السحب
+    promptVisibleIndex.value = currentIndex
+    setTimeout(() => {
+      if (promptVisibleIndex.value === currentIndex) {
+        promptVisibleIndex.value = null
+      }
+    }, 2000)
+  }
+}
+
+const fetchData = async () => {
   try {
-    const response = await fetch(`https://be.24h24s.com/api/arrangement/${titleParam}`);
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    const data = await response.json();
-    const fetchedPosts = data.posts || data || [];
-    fetchedPosts.forEach((post) => (post.liked = isVideoLiked(post.id, titleParam)));
-    posts.value = fetchedPosts;
+    const res = await fetch('https://be.24h24s.com/api/videos');
+    const data = await res.json();
+
+    const likedIds = getLikedVideos(route.params.title);
+
+    const categoryOrder = Object.keys(data); // ترتيب الكاتيجوريز
+    const categoryMap = {};
+
+    // نحط الفيديوهات ونضيف عليهم خصائص
+    for (const cat of categoryOrder) {
+      categoryMap[cat] = data[cat].map(v => ({
+        ...v,
+        liked: likedIds.includes(v.id),
+        _category: cat,
+      }));
+    }
+
+    const result = [];
+
+    // نلف لحد ما كل الكاتيجوريز تفضى
+    let anyLeft = true;
+
+    while (anyLeft) {
+      anyLeft = false;
+
+      for (const cat of categoryOrder) {
+        const videos = categoryMap[cat];
+        if (videos.length > 0) {
+          // ناخد اندكس عشوائي من اللي فاضلين
+          const randomIndex = Math.floor(Math.random() * videos.length);
+          const [video] = videos.splice(randomIndex, 1); // نشيله من الكاتيجوري
+
+          if (video) {
+            result.push(video);
+            anyLeft = true;
+          }
+        }
+      }
+    }
+
+    posts.value = result;
+    // test
+    console.log("📺 فيديوهات العرض النهائي:");
+    result.forEach((video, index) => {
+      console.log(`${index + 1}. [${video._category}] ${video.title || video.id}`);
+    });
   } catch (err) {
-    error.value = "Failed to load data. Please try again.";
+    error.value = 'Failed to load videos.';
   } finally {
     loading.value = false;
   }
 };
 
-watch(
-  () => route.params.title,
-  (newTitle) => {
-    fetchData(newTitle || "default");
-  },
-  { immediate: true }
-);
+
 
 onMounted(() => {
-  fetchData(route.params.title);
-  promptVisibleIndex.value = 0;
+  fetchData()
+  promptVisibleIndex.value = 0
   setTimeout(() => {
-    if (promptVisibleIndex.value === 0) promptVisibleIndex.value = null;
-  }, 5000);
-});
+    promptVisibleIndex.value = null
+  }, 5000)
+})
 </script>
 
 <style scoped>
@@ -242,7 +278,12 @@ onMounted(() => {
   height: 100vh;
 }
 
-.skeleton-card,
+.swiper-slide {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
 .post-card {
   background: white;
   border-radius: 10px;
@@ -293,10 +334,6 @@ onMounted(() => {
   gap: 5px;
 }
 
-.liked {
-  color: orange !important;
-}
-
 .right-info {
   display: flex;
   gap: 10px;
@@ -318,7 +355,7 @@ onMounted(() => {
   font-size: 16px;
 }
 
-/* Swipe prompt styles */
+/* Swipe prompt */
 .swipe-prompt {
   position: absolute;
   top: 30%;
@@ -330,9 +367,7 @@ onMounted(() => {
   font-size: 18px;
   font-weight: bold;
   animation: slideDownUp 3s ease-in-out forwards;
-  text-shadow:
-    0 0 4px black,
-    0 0 6px black;
+  text-shadow: 0 0 4px black, 0 0 6px black;
 }
 
 @keyframes slideDownUp {
@@ -353,6 +388,4 @@ onMounted(() => {
     transform: translate(-50%, -70%);
   }
 }
-
-
 </style>
