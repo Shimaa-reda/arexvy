@@ -271,8 +271,25 @@ onMounted(() => {
   }, 5000)
 })
 </script>
+<style>
+body {
+  margin: 0;
+  padding: 0;
+  overflow-x: hidden;
+  background-image: url("@/assets/background.png");
+  background-position: center;
+  background-size: 100% 100%;
+  background-repeat: no-repeat;
+  background-attachment: fixed;
+  font-family: "GSK Precision", sans-serif;
+}
+.likes-views button {
+  font-family: "GSK Precision", sans-serif;
+}
+</style>
 
 <style scoped>
+
 .mySwiper {
   width: 100%;
   height: 100vh;
