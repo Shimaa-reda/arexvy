@@ -37,9 +37,9 @@
                 playsinline
                 :muted="isMuted"
                 class="post-video"
+                @timeupdate="handleTimeUpdate($event, index)"
               ></video>
 
-              <!-- Swipe Prompt -->
               <div v-if="promptVisibleIndex === index" class="swipe-prompt">
                 Swipe down for more videos
               </div>
@@ -50,17 +50,16 @@
             </div>
 
             <div class="post-info" style="margin-top: 10px">
-            <div class="likes-views">
-  <button @click="toggleLike(post.id)">
-    <i :class="post.liked ? 'fa-solid fa-heart' : 'fa-regular fa-heart'"></i>
-    {{ post.likes }} Likes
-  </button>
-  <div class="right-info">
-    <span><i class="fas fa-clock"></i> {{ calculateDaysAgo(post.created_at) }} Days ago</span>
-    <span><i class="fas fa-play"></i> {{ post.views }} Views</span>
-  </div>
-</div>
-
+              <div class="likes-views">
+                <button @click="toggleLike(post.id)">
+                  <i :class="post.liked ? 'fa-solid fa-heart' : 'fa-regular fa-heart'"></i>
+                  {{ post.likes }} Likes
+                </button>
+                <div class="right-info">
+                  <span><i class="fas fa-clock"></i> {{ calculateDaysAgo(post.created_at) }} Days ago</span>
+                  <span><i class="fas fa-play"></i> {{ post.views }} Views</span>
+                </div>
+              </div>
             </div>
           </div>
         </swiper-slide>
@@ -86,82 +85,78 @@ const viewedVideos = ref([])
 const processingVideos = ref(new Set())
 const route = useRoute()
 
-// ❤️ وظائف الإعجاب
 const getLikedVideos = (title) => {
-  const key = title ? `likedVideos_${title}` : "likedVideos_default";
-  const data = localStorage.getItem(key);
-  return data ? JSON.parse(data) : [];
-};
+  const key = title ? `likedVideos_${title}` : "likedVideos_default"
+  const data = localStorage.getItem(key)
+  return data ? JSON.parse(data) : []
+}
 
 const saveLikedVideo = (id, title) => {
-  const key = title ? `likedVideos_${title}` : "likedVideos_default";
-  const liked = getLikedVideos(title);
+  const key = title ? `likedVideos_${title}` : "likedVideos_default"
+  const liked = getLikedVideos(title)
   if (!liked.includes(id)) {
-    liked.push(id);
-    localStorage.setItem(key, JSON.stringify(liked));
+    liked.push(id)
+    localStorage.setItem(key, JSON.stringify(liked))
   }
-};
+}
 
 const removeLikedVideo = (id, title) => {
-  const key = title ? `likedVideos_${title}` : "likedVideos_default";
-  const liked = getLikedVideos(title);
-  const updated = liked.filter((x) => x !== id);
-  localStorage.setItem(key, JSON.stringify(updated));
-};
-
-
+  const key = title ? `likedVideos_${title}` : "likedVideos_default"
+  const liked = getLikedVideos(title)
+  const updated = liked.filter((x) => x !== id)
+  localStorage.setItem(key, JSON.stringify(updated))
+}
 
 const toggleLike = async (id) => {
-  const post = posts.value.find((p) => p.id === id);
-  if (!post) return;
+  const post = posts.value.find((p) => p.id === id)
+  if (!post) return
 
-  const key = route.params.title;
+  const key = route.params.title
 
   if (post.liked) {
-    post.liked = false;
-    post.likes--;
-    removeLikedVideo(id, key);
+    post.liked = false
+    post.likes--
+    removeLikedVideo(id, key)
     try {
-      await fetch(`https://be.24h24s.com/api/video/${id}/unlike`);
+      await fetch(`https://be.24h24s.com/api/video/${id}/unlike`)
     } catch {
-      post.liked = true;
-      post.likes++;
-      saveLikedVideo(id, key);
+      post.liked = true
+      post.likes++
+      saveLikedVideo(id, key)
     }
   } else {
-    post.liked = true;
-    post.likes++;
-    saveLikedVideo(id, key);
+    post.liked = true
+    post.likes++
+    saveLikedVideo(id, key)
     try {
-      await fetch(`https://be.24h24s.com/api/video/${id}/like`);
+      await fetch(`https://be.24h24s.com/api/video/${id}/like`)
     } catch {
-      post.liked = false;
-      post.likes--;
-      removeLikedVideo(id, key);
+      post.liked = false
+      post.likes--
+      removeLikedVideo(id, key)
     }
   }
-};
-
+}
 
 const incrementView = async (id) => {
-  const videoIdInt = parseInt(id);
-  if (viewedVideos.value.includes(videoIdInt) || processingVideos.value.has(videoIdInt)) return;
-  processingVideos.value.add(videoIdInt);
+  const videoIdInt = parseInt(id)
+  if (viewedVideos.value.includes(videoIdInt) || processingVideos.value.has(videoIdInt)) return
+  processingVideos.value.add(videoIdInt)
 
   try {
-    const res = await fetch(`https://be.24h24s.com/api/video/${id}/view`);
+    const res = await fetch(`https://be.24h24s.com/api/video/${id}/view`)
     if (res.ok) {
-      const result = await res.json();
-      viewedVideos.value.push(videoIdInt);
-      const post = posts.value.find((p) => p.id === id);
-      if (post) post.views = result.data?.views ?? post.views + 1;
+      const result = await res.json()
+      viewedVideos.value.push(videoIdInt)
+      const post = posts.value.find((p) => p.id === id)
+      if (post) post.views = result.data?.views ?? post.views + 1
     }
   } catch (err) {
-    console.error("View error", err);
+    console.error("View error", err)
   } finally {
-    processingVideos.value.delete(videoIdInt);
+    processingVideos.value.delete(videoIdInt)
   }
-};
+}
 
 const toggleMute = () => {
   isMuted.value = !isMuted.value
@@ -192,104 +187,78 @@ const onSlideChange = (swiper) => {
     currentVideo.muted = isMuted.value
     currentVideo.play().catch(() => {})
 
-    // 👁️‍🗨️ تسجيل المشاهدة
     const post = posts.value[currentIndex]
     if (post) incrementView(post.id)
+  }
+}
 
-    // عرض رسالة السحب
-    promptVisibleIndex.value = currentIndex
-    setTimeout(() => {
-      if (promptVisibleIndex.value === currentIndex) {
-        promptVisibleIndex.value = null
-      }
-    }, 2000)
+// ✅ تراكب الوقت لإظهار الرسالة في آخر 3 ثواني
+const handleTimeUpdate = (event, index) => {
+  const video = event.target
+  const currentTime = video.currentTime
+  const duration = video.duration
+
+  if (duration - currentTime <= 3) {
+    promptVisibleIndex.value = index
+  } else {
+    if (promptVisibleIndex.value === index) {
+      promptVisibleIndex.value = null
+    }
   }
 }
 
 const fetchData = async () => {
   try {
-    const res = await fetch('https://be.24h24s.com/api/videos');
-    const data = await res.json();
+    const res = await fetch('https://be.24h24s.com/api/videos')
+    const data = await res.json()
+    const likedIds = getLikedVideos(route.params.title)
+    const categoryOrder = Object.keys(data)
+    const categoryMap = {}
 
-    const likedIds = getLikedVideos(route.params.title);
-
-    const categoryOrder = Object.keys(data); // ترتيب الكاتيجوريز
-    const categoryMap = {};
-
-    // نحط الفيديوهات ونضيف عليهم خصائص
     for (const cat of categoryOrder) {
       categoryMap[cat] = data[cat].map(v => ({
         ...v,
         liked: likedIds.includes(v.id),
         _category: cat,
-      }));
+      }))
     }
 
-    const result = [];
-
-    // نلف لحد ما كل الكاتيجوريز تفضى
-    let anyLeft = true;
+    const result = []
+    let anyLeft = true
 
     while (anyLeft) {
-      anyLeft = false;
-
+      anyLeft = false
       for (const cat of categoryOrder) {
-        const videos = categoryMap[cat];
+        const videos = categoryMap[cat]
         if (videos.length > 0) {
-          // ناخد اندكس عشوائي من اللي فاضلين
-          const randomIndex = Math.floor(Math.random() * videos.length);
-          const [video] = videos.splice(randomIndex, 1); // نشيله من الكاتيجوري
-
+          const randomIndex = Math.floor(Math.random() * videos.length)
+          const [video] = videos.splice(randomIndex, 1)
           if (video) {
-            result.push(video);
-            anyLeft = true;
+            result.push(video)
+            anyLeft = true
           }
         }
       }
     }
 
-    posts.value = result;
-    // test
-    console.log("📺 فيديوهات العرض النهائي:");
+    posts.value = result
+    console.log("📺 فيديوهات العرض النهائي:")
     result.forEach((video, index) => {
-      console.log(`${index + 1}. [${video._category}] ${video.title || video.id}`);
-    });
+      console.log(`${index + 1}. [${video._category}] ${video.title || video.id}`)
+    })
   } catch (err) {
-    error.value = 'Failed to load videos.';
+    error.value = 'Failed to load videos.'
   } finally {
-    loading.value = false;
+    loading.value = false
   }
-};
-
-
+}
 
 onMounted(() => {
   fetchData()
-  promptVisibleIndex.value = 0
-  setTimeout(() => {
-    promptVisibleIndex.value = null
-  }, 5000)
 })
 </script>
-<style>
-body {
-  margin: 0;
-  padding: 0;
-  overflow-x: hidden;
-  background-image: url("@/assets/background.png");
-  background-position: center;
-  background-size: 100% 100%;
-  background-repeat: no-repeat;
-  background-attachment: fixed;
-  font-family: "GSK Precision", sans-serif;
-}
-.likes-views button {
-  font-family: "GSK Precision", sans-serif;
-}
-</style>
 
 <style scoped>
-
 .mySwiper {
   width: 100%;
   height: 100vh;
@@ -372,7 +341,6 @@ body {
   font-size: 16px;
 }
 
-/* Swipe prompt */
 .swipe-prompt {
   position: absolute;
   top: 30%;
@@ -404,5 +372,22 @@ body {
     opacity: 0;
     transform: translate(-50%, -70%);
   }
+}
+</style>
+
+<style>
+body {
+  margin: 0;
+  padding: 0;
+  overflow-x: hidden;
+  background-image: url("@/assets/background.png");
+  background-position: center;
+  background-size: 100% 100%;
+  background-repeat: no-repeat;
+  background-attachment: fixed;
+  font-family: "GSK Precision", sans-serif;
+}
+.likes-views button {
+  font-family: "GSK Precision", sans-serif;
 }
 </style>
