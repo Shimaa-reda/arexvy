@@ -48,7 +48,7 @@
               ></video>
 
               <div v-if="promptVisibleIndex === index" class="swipe-prompt">
-                Swipe down for more videos
+                Swipe Up for more videos
               </div>
 
               <button class="mute-button" @click="toggleMute">
