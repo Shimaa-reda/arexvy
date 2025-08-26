@@ -1,5 +1,11 @@
 <template>
   <div>
+
+    <div class="logo-container">
+      <img src="@/assets/Icon.svg" alt="Logo" class="logo" />
+    </div>
+
+
     <div v-if="loading" class="skeleton-container">
       <div class="skeleton-card" v-for="n in 6" :key="n">
         <div class="skeleton-video"></div>
@@ -29,8 +35,9 @@
         <swiper-slide v-for="(post, index) in posts" :key="post.id">
           <div class="post-card">
             <div class="video-wrapper">
-              <video
-                :src="`https://be.24h24s.com/${post.video_url}`"
+              <video  
+                :src="`https://be.shing-shorts.com/${post.video_url}`" 
+                
                 :data-video-id="post.id"
                 autoplay
                 loop
@@ -118,7 +125,7 @@ const toggleLike = async (id) => {
     post.likes--
     removeLikedVideo(id, key)
     try {
-      await fetch(`https://be.24h24s.com/api/video/${id}/unlike`)
+      await fetch(`https://be.shing-shorts.com/api/videos/${id}/unlike`)
     } catch {
       post.liked = true
       post.likes++
@@ -129,7 +136,7 @@ const toggleLike = async (id) => {
     post.likes++
     saveLikedVideo(id, key)
     try {
-      await fetch(`https://be.24h24s.com/api/video/${id}/like`)
+      await fetch(`https://be.shing-shorts.com/api/videos/${id}/like`)
     } catch {
       post.liked = false
       post.likes--
@@ -144,7 +151,7 @@ const incrementView = async (id) => {
   processingVideos.value.add(videoIdInt)
 
   try {
-    const res = await fetch(`https://be.24h24s.com/api/video/${id}/view`)
+    const res = await fetch(`https://be.shing-shorts.com/api/videos/${id}/view`)
     if (res.ok) {
       const result = await res.json()
       viewedVideos.value.push(videoIdInt)
@@ -209,7 +216,7 @@ const handleTimeUpdate = (event, index) => {
 
 const fetchData = async () => {
   try {
-    const res = await fetch('https://be.24h24s.com/api/videos')
+    const res = await fetch('https://be.shing-shorts.com/api/videos')
     const data = await res.json()
     const likedIds = getLikedVideos(route.params.title)
     const categoryOrder = Object.keys(data)
@@ -259,6 +266,18 @@ onMounted(() => {
 </script>
 
 <style scoped>
+.logo-container {
+  position: fixed; 
+  top: 10px;
+  left: 60px;
+  z-index: 1000; 
+}
+
+.logo {
+  height: 80px; 
+  width: auto;
+  cursor: pointer;
+}
 .mySwiper {
   width: 100%;
   height: 100vh;
