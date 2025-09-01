@@ -39,7 +39,7 @@
                 :src="`https://be.shing-shorts.com/${post.video_url}`" 
                 
                 :data-video-id="post.id"
-                autoplay
+                
                 loop
                 playsinline
                 :muted="isMuted"
@@ -260,9 +260,21 @@ const fetchData = async () => {
   }
 }
 
+// onMounted(() => {
+//   fetchData()
+// })
 onMounted(() => {
-  fetchData()
+  fetchData().then(() => {
+    // بعد ما الفيديوهات تتحمل نشغل أول فيديو بس
+    const firstSlide = document.querySelector(".swiper-slide-active")
+    const firstVideo = firstSlide?.querySelector("video")
+    if (firstVideo) {
+      firstVideo.muted = isMuted.value
+      firstVideo.play().catch(() => {})
+    }
+  })
 })
+
 </script>
 
 <style scoped>
