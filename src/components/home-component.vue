@@ -1,9 +1,9 @@
 <template>
   <div>
 
-    <div class="logo-container">
+    <!-- <div class="logo-container">
       <img src="@/assets/Icon.svg" alt="Logo" class="logo" />
-    </div>
+    </div> -->
 
 
     <div v-if="loading" class="skeleton-container">
@@ -34,27 +34,45 @@
       >
         <swiper-slide v-for="(post, index) in posts" :key="post.id">
           <div class="post-card">
-            <div class="video-wrapper">
-              <video  
-                :src="`https://be.shing-shorts.com/${post.video_url}`" 
-                
-                :data-video-id="post.id"
-                
-                loop
-                playsinline
-                :muted="isMuted"
-                class="post-video"
-                @timeupdate="handleTimeUpdate($event, index)"
-              ></video>
+          <div class="video-wrapper">
+  <video  
+    :src="`https://be.shing-shorts.com/${post.video_url}`" 
+    :data-video-id="post.id"
+    loop
+    playsinline
+    :muted="isMuted"
+    class="post-video"
+    @timeupdate="handleTimeUpdate($event, index)"
+  ></video>
 
-              <div v-if="promptVisibleIndex === index" class="swipe-prompt">
-                Swipe Up for more videos
-              </div>
+  <div v-if="promptVisibleIndex === index" class="swipe-prompt">
+    Swipe Up for more videos
+  </div>
 
-              <button class="mute-button" @click="toggleMute">
-                <i :class="isMuted ? 'fas fa-volume-mute' : 'fas fa-volume-up'"></i>
-              </button>
-            </div>
+  <button class="mute-button" @click="toggleMute">
+    <i :class="isMuted ? 'fas fa-volume-mute' : 'fas fa-volume-up'"></i>
+  </button>
+</div>
+
+<!-- 👇 الماركيه بعد الميوت ايكون -->
+<marquee class="marquee-text" behavior="scroll" direction="left" id="myMarquee">
+  For more information, please refer to the prescribing information or contact GSK:
+  P. O Box 58558, Jeddah, 21544, Kingdom of Saudi Arabia. Telephone: +966 12 633 6666 or via gcc.medinfo@gsk.com
+
+  &nbsp;&nbsp;&nbsp;&nbsp;
+
+  To report Adverse Events associated with the use of GSK product(s), please contact us via saudi.safety@gsk.com
+
+  &nbsp;&nbsp;&nbsp;&nbsp;
+
+  To report Product quality related complaint(s) associated with the use of GSK product(s), please contact us via Gulf.KSA-Product-Complaints@gsk.com
+
+  &nbsp;&nbsp;&nbsp;&nbsp;
+
+  Trademarks are owned by or licensed to the GSK group of companies. ©2023 GSK group of companies or its licensor.
+</marquee>
+
+
 
             <div class="post-info" style="margin-top: 10px">
               <div class="likes-views">
@@ -180,24 +198,31 @@ const calculateDaysAgo = (createdAt) => {
 }
 
 const onSlideChange = (swiper) => {
-  const currentIndex = swiper.activeIndex
-  const slides = document.querySelectorAll(".swiper-slide")
-  const currentSlide = slides[currentIndex]
-  const currentVideo = currentSlide?.querySelector("video")
+  const currentIndex = swiper.activeIndex;
+  const slides = document.querySelectorAll(".swiper-slide");
+  const currentSlide = slides[currentIndex];
+  const currentVideo = currentSlide?.querySelector("video");
 
   if (currentVideo) {
     slides.forEach(slide => {
-      const video = slide.querySelector("video")
-      if (video && video !== currentVideo) video.pause()
-    })
+      const video = slide.querySelector("video");
+      if (video && video !== currentVideo) video.pause();
+    });
 
-    currentVideo.muted = isMuted.value
-    currentVideo.play().catch(() => {})
+    currentVideo.muted = isMuted.value;
+    currentVideo.play().catch(() => {});
 
-    const post = posts.value[currentIndex]
-    if (post) incrementView(post.id)
+    const post = posts.value[currentIndex];
+    if (post) incrementView(post.id);
+
+    // إعادة ضبط الماركيه لتبدأ من الأول
+    const marquee = document.getElementById("myMarquee");
+    if (marquee) {
+      marquee.stop();
+      marquee.start();
+    }
   }
-}
+};
 
 // ✅ تراكب الوقت لإظهار الرسالة في آخر 3 ثواني
 const handleTimeUpdate = (event, index) => {
@@ -281,15 +306,24 @@ onMounted(() => {
 .logo-container {
   position: fixed; 
   top: 10px;
-  left: 60px;
+  left: 40px;
   z-index: 1000; 
 }
 
+.marquee-text {
+  margin-block: 15px;
+  font-size: 14px;
+  font-weight: bold; 
+  color: black;
+  line-height: 1.6;
+  text-shadow: none; 
+}
 .logo {
-  height: 80px; 
+  height: 60px; 
   width: auto;
   cursor: pointer;
 }
+
 .mySwiper {
   width: 100%;
   height: 100vh;
@@ -318,6 +352,7 @@ onMounted(() => {
   width: 100%;
   border-radius: 10px;
   pointer-events: none;
+  object-fit: contain; /* مهم عشان الفيديو ما يتمددش */
 }
 
 .mute-button {
@@ -404,6 +439,42 @@ onMounted(() => {
     transform: translate(-50%, -70%);
   }
 }
+
+/* 📱 للموبايل */
+@media (max-width: 768px) {
+  /* اللوجو يفضل ثابت فوق */
+  .logo-container {
+    position: fixed;
+    top: 10px;
+    left: 20px;
+    z-index: 2000;
+  }
+
+  .logo {
+    height: 50px; 
+    width: auto;
+    cursor: pointer;
+  }
+
+  /* نخلي الفيديو يبدأ بعد اللوجو بمسافة */
+  .mySwiper {
+    margin-top: 33px; /* ← عدلي الرقم حسب المسافة اللي تحبيها */
+  }
+
+  .post-card {
+    max-width: 100%;
+    margin: 20px auto;
+    background: white;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    padding: 15px;
+  }
+
+  .post-video {
+    max-height: calc(100vh - 140px); /* بحيث يفضل تحته فراغ للوجو */
+  }
+}
+
+
 </style>
 
 <style>
