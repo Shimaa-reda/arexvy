@@ -55,7 +55,12 @@
 </div>
 
 <!-- 👇 الماركيه بعد الميوت ايكون -->
-<marquee class="marquee-text" behavior="scroll" direction="left" id="myMarquee">
+<marquee 
+  class="marquee-text" 
+  behavior="scroll" 
+  direction="left" 
+  :key="marqueeKey"
+>
   For more information, please refer to the prescribing information or contact GSK:
   P. O Box 58558, Jeddah, 21544, Kingdom of Saudi Arabia. Telephone: +966 12 633 6666 or via gcc.medinfo@gsk.com
 
@@ -71,6 +76,7 @@
 
   Trademarks are owned by or licensed to the GSK group of companies. ©2023 GSK group of companies or its licensor.
 </marquee>
+
 
 
 
@@ -109,6 +115,7 @@ const promptVisibleIndex = ref(null)
 const viewedVideos = ref([])
 const processingVideos = ref(new Set())
 const route = useRoute()
+const marqueeKey = ref(0)
 
 const getLikedVideos = (title) => {
   const key = title ? `likedVideos_${title}` : "likedVideos_default"
@@ -215,14 +222,12 @@ const onSlideChange = (swiper) => {
     const post = posts.value[currentIndex];
     if (post) incrementView(post.id);
 
-    // إعادة ضبط الماركيه لتبدأ من الأول
-    const marquee = document.getElementById("myMarquee");
-    if (marquee) {
-      marquee.stop();
-      marquee.start();
-    }
+    // 👇 نجبر الماركيه يبدأ من الأول
+    marqueeKey.value++;
   }
 };
+
+
 
 // ✅ تراكب الوقت لإظهار الرسالة في آخر 3 ثواني
 const handleTimeUpdate = (event, index) => {
