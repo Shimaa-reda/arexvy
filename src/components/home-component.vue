@@ -316,12 +316,17 @@ onMounted(() => {
 }
 
 .marquee-text {
-  margin-block: 15px;
-  font-size: 14px;
+  margin-block: 5px;
+  font-size: 10px;
   font-weight: bold; 
-  color: black;
+  color: white;
   line-height: 1.6;
   text-shadow: none; 
+  /* background-color: #898D93; */
+  padding: 2px;
+  /* font-weight: 100; */
+  background-color: rgba(106, 107, 110, 0.7)
+  
 }
 .logo {
   height: 60px; 
