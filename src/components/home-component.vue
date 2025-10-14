@@ -472,7 +472,7 @@ onMounted(() => {
   }
 
   .post-card {
-    max-width: 100%;
+    max-width: 85%;
     margin: 20px auto;
     background: white;
     box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
